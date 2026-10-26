@@ -41,7 +41,23 @@ Visualization                         poses over NetworkTables → AdvantageScop
 
 ## Status
 
-v0 in progress. See [docs/plan.md](docs/plan.md).
+v0 plays 2026 REBUILT with the 2026-Offseason robot (`D:\Projects\2026-Offseason`, branch `box3d-sim`; see its
+`SIMULATION.md`), interactively or headless. The plan is in [docs/plan.md](docs/plan.md).
+
+## v0 limitations
+
+- **Flat chassis.** The robot is locked to the floor plane, with no roll, pitch or ride height. BUMPs don't affect
+  robots, and FUEL still rolls over BUMPs. A robot taller than the trench clearance is blocked by the TRENCH arm.
+- **Normal loads** come from analytic load transfer, not contact forces.
+- **Intake** has no physical roller collider: FUEL in the deployed zone is taken or ignored.
+- **Storage** is counted, not simulated. There are no jams or ball-to-ball contact inside the robot.
+- **HUB** has a square rim instead of the hex, no internal funnel, and exits that are spawn points with random speeds.
+- **OUTPOST chute** isn't physical; released FUEL spawns at the chute mouth.
+- **One robot.** No opponents or partners, no towers or climbing, no vision.
+- **Robot constants.** Shooter, intake and storage constants are assumptions until calibrated against the real robot.
+- **Rolling resistance** is applied as a force by `GamePieces`, because Box3D's own stops sliding spheres from
+  spinning up.
+- **Windows x64 natives only.**
 
 ## Constraints
 

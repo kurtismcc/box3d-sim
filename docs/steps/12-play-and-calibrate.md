@@ -35,6 +35,23 @@ assertion.
   real shots landed from the auto start (or from tape marks at SoCal Showdown) before tuning further. The real
   robot is the ground truth, and these constants are guesses.
 
+**Measured with the v0 defaults (2026-10-26):**
+
+| preset | d (m) | crossing x | in opening | apex z |
+|---|---|---|---|---|
+| hub (2700 rpm, hood 0) | 1.0 | 3.33 (bounced back) | no | 2.62 |
+| hub | 1.5 | 4.61 | yes | 2.74 |
+| hub | 2.0 | 4.69 | yes | 2.74 |
+| hub | 2.5 | 4.19 | yes | 2.74 |
+| hub | 3.0 | 3.81 (short) | no | 2.74 |
+| side (3000 rpm, −8.5 rot) | 1.0 | 2.91 (bounced back) | no | 2.11 |
+| side | 1.5 | 3.44 (bounced back) | no | 1.91 |
+| side | 2.0 | 4.76 | yes | 2.59 |
+| side | 2.5 | 4.85 | yes | 2.59 |
+| side | 3.0 | 4.94 | yes | 2.59 |
+
+The auto-end-point assertion passes. The headless `Shoot at Hub` run (step 13) scores all 8 preloads.
+
 | Constant | v0 default | Calibrated | Notes |
 |---|---|---|---|
 | flywheel radius | 0.0508 m | | |
@@ -141,9 +158,9 @@ the max of the per-loop sum. The budget is well under 20 ms per loop; record the
 
 | Metric | Value |
 |---|---|
-| mean ms per 20 ms loop | |
-| max ms per 20 ms loop | |
-| awake FUEL at max | |
+| mean ms per 20 ms loop | not yet measured interactively. Headless lockstep runs whole loops (robot code + 5 physics substeps) at 2.6–3.2× real time, about 6–8 ms per loop |
+| max ms per 20 ms loop | one 30 ms loop at startup (JIT warm-up); none after in a 20 s disabled run |
+| awake FUEL at max | not yet measured |
 
 If the sim falls behind real time, report it to Kurtis with the numbers. Options include fewer substeps,
 `workerCount > 1`, and skipping aerodynamics for slow balls. Don't apply them unasked.
