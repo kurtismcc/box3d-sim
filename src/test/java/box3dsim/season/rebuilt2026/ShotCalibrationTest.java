@@ -44,7 +44,7 @@ class ShotCalibrationTest {
             RebuiltField.build(arena.world());
             Pose3 start = Pose3.ofXYYaw(HUB_X - distance - EXIT_AHEAD, HUB_Y, 0, 0);
             SwerveDriveSim drive = new SwerveDriveSim(arena.world(), arena.battery(), TestConfigs.maxSwerve(), start);
-            ShooterSim shooter = new ShooterSim(arena, drive, arena.battery(), shooterConfig(), (p, v) -> {});
+            ShooterSim shooter = new ShooterSim(arena, drive, arena.battery(), shooterConfig(), (piece, p, v) -> {});
             arena.addParticipant(drive);
             arena.addParticipant(shooter);
             arena.step();

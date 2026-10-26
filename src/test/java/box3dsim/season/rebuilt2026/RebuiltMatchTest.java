@@ -171,15 +171,54 @@ class RebuiltMatchTest {
     }
 
     @Test
-    void launchingOutsideTheAllianceZoneIsAMajorFoul() {
+    void launchingIntoOwnHubFromOutsideTheZoneIsAMajorFoul() {
         match.setDsState(TELEOP);
         arena.advance(0.1);
-        match.onLaunch(Alliance.BLUE, Pose3.ofXYYaw(6.0, 4, 0, 0), 0.45, 0.45);
-        assertEquals(15, match.score(Alliance.RED));
+        // From midfield into the blue HUB: foul once the FUEL enters.
+        GamePiece intoHub = dropIntoHub(Alliance.BLUE);
+        match.onLaunch(Alliance.BLUE, intoHub, Pose3.ofXYYaw(6.0, 4, 0, 0), 0.45, 0.45);
+        assertEquals(0, match.fouls(Alliance.BLUE), "no foul until the FUEL reaches the HUB");
+        arena.advance(1);
         assertEquals(1, match.fouls(Alliance.BLUE));
-        match.onLaunch(Alliance.BLUE, Pose3.ofXYYaw(3.0, 4, 0, 0), 0.45, 0.45);
-        assertEquals(15, match.score(Alliance.RED));
+        int redAfterFoul = match.score(Alliance.RED);
+        assertTrue(redAfterFoul >= 15);
+        // From midfield onto the floor (passing FUEL to your side): legal.
+        GamePiece pass = arena.gamePieces().spawn(RebuiltFuel.TYPE, new Vec3(6.5, 2.0, 0.5), new Vec3(-3, 0, 1),
+                Vec3.ZERO, true);
+        match.onLaunch(Alliance.BLUE, pass, Pose3.ofXYYaw(7.0, 2.0, 0, Math.PI), 0.45, 0.45);
+        // From inside the zone into the HUB: legal.
+        GamePiece legal = dropIntoHub(Alliance.BLUE);
+        match.onLaunch(Alliance.BLUE, legal, Pose3.ofXYYaw(3.0, 4, 0, 0), 0.45, 0.45);
+        arena.advance(3);
         assertEquals(1, match.fouls(Alliance.BLUE));
+        // From midfield into the opponent's HUB: not G407 (it's not "their" HUB).
+        GamePiece other = dropIntoHub(Alliance.RED);
+        match.onLaunch(Alliance.BLUE, other, Pose3.ofXYYaw(9.0, 4, 0, Math.PI), 0.45, 0.45);
+        arena.advance(1);
+        assertEquals(1, match.fouls(Alliance.BLUE));
+    }
+
+    @Test
+    void freePlayNeverEndsOrCutsOutputs() {
+        match.setDsState(TELEOP);
+        arena.advance(1);
+        assertEquals(MatchPhase.TRANSITION, match.phase());
+        match.setFreePlay(true);
+        arena.advance(150);
+        assertEquals(MatchPhase.FREE_PLAY, match.phase());
+        assertTrue(match.outputsAllowed());
+        dropIntoHub(Alliance.BLUE);
+        arena.advance(2.5);
+        assertEquals(1, match.freePlayFuel(Alliance.BLUE));
+        assertEquals(0, match.score(Alliance.BLUE));
+        // Off again: the next enable starts a timed match.
+        match.setFreePlay(false);
+        match.setDsState(DsState.DISABLED);
+        arena.advance(0.1);
+        assertEquals(MatchPhase.FREE_PLAY, match.phase());
+        match.setDsState(TELEOP);
+        arena.advance(0.1);
+        assertEquals(MatchPhase.TRANSITION, match.phase());
     }
 
     @Test

@@ -3,6 +3,7 @@ package box3dsim.mechanism;
 import box3dsim.arena.Arena;
 import box3dsim.arena.ArenaParticipant;
 import box3dsim.drive.SwerveDriveSim;
+import box3dsim.gamepiece.GamePiece;
 import box3dsim.gamepiece.GamePieceType;
 import box3dsim.math.Pose3;
 import box3dsim.math.Vec3;
@@ -87,13 +88,13 @@ public final class ShooterSim implements ArenaParticipant, ElectricalLoad, Launc
         Vec3 v = new Vec3(chassis.x() - omega * r.y(), chassis.y() + omega * r.x(), 0).plus(dir.times(exitSpeed));
         Vec3 spinAxis = dir.cross(new Vec3(0, 0, 1)).normalized();
         Vec3 spin = spinAxis.times(config.spinRatio() * exitSpeed / type.radius());
-        arena.gamePieces().spawn(type, p, v, spin, true);
+        GamePiece piece = arena.gamePieces().spawn(type, p, v, spin, true);
 
         double ballInertia = 0.4 * type.mass() * type.radius() * type.radius();
         double energy = 0.5 * type.mass() * exitSpeed * exitSpeed + 0.5 * ballInertia * spin.normSquared();
         flywheel.removeEnergy(energy / config.energyEfficiency());
 
-        listener.onLaunch(robot, v);
+        listener.onLaunch(piece, robot, v);
         shots++;
         lastExitVelocity = v;
         return true;

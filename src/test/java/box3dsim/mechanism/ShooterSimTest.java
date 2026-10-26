@@ -28,7 +28,7 @@ class ShooterSimTest {
                 p -> Math.toRadians(60),
                 new Vec3(0.1, 0, 0.64), 0,
                 MechanismTestRig.FUEL);
-        shooter = new ShooterSim(rig.arena, rig.drive, rig.arena.battery(), cfg, (pose, v) -> {});
+        shooter = new ShooterSim(rig.arena, rig.drive, rig.arena.battery(), cfg, (piece, pose, v) -> {});
         rig.arena.addParticipant(shooter);
         rig.arena.addLoad(shooter);
     }

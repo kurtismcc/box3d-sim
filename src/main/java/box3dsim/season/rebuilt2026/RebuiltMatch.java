@@ -11,6 +11,7 @@ import box3dsim.math.Vec3;
 import box3dsim.world.SensorEvent;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -71,7 +72,10 @@ public final class RebuiltMatch implements ArenaParticipant {
     private final Map<Alliance, Double> deactivatedAt = new EnumMap<>(Alliance.class);
     private final Map<Alliance, Boolean> prevActive = new EnumMap<>(Alliance.class);
     private final List<PendingFuel> pending = new ArrayList<>();
+    /** Piece id → alliance that launched it from outside its ALLIANCE ZONE. */
+    private final Map<Integer, Alliance> outOfZoneLaunches = new HashMap<>();
     private String lastFoul = "";
+    private boolean freePlay;
 
     private record PendingFuel(Alliance alliance, double countTime) {}
 
@@ -115,6 +119,7 @@ public final class RebuiltMatch implements ArenaParticipant {
         prevEnabledTeleop = false;
         teleopArmed = false;
         lastFoul = "";
+        outOfZoneLaunches.clear();
         for (Alliance a : Alliance.values()) {
             score.put(a, 0);
             autoFuel.put(a, 0);
@@ -158,6 +163,9 @@ public final class RebuiltMatch implements ArenaParticipant {
         boolean teleopRise = enabledTeleop && !prevEnabledTeleop;
         prevEnabledAuto = enabledAuto;
         prevEnabledTeleop = enabledTeleop;
+        if (freePlay) {
+            return;
+        }
 
         switch (phase) {
             case FREE_PLAY -> {
@@ -241,6 +249,10 @@ public final class RebuiltMatch implements ArenaParticipant {
             }
             for (Alliance a : Alliance.values()) {
                 if (e.sensor().equals(field.hubSensors().get(a))) {
+                    Alliance launcher = outOfZoneLaunches.remove(piece.get().id());
+                    if (launcher == a) {
+                        foul(a, "G407 " + a + " launched into its HUB from outside its ALLIANCE ZONE");
+                    }
                     pieces.remove(piece.get());
                     double delay = COUNT_DELAY_MIN + random.nextDouble() * (COUNT_DELAY_MAX - COUNT_DELAY_MIN);
                     pending.add(new PendingFuel(a, now + delay));
@@ -331,6 +343,22 @@ public final class RebuiltMatch implements ArenaParticipant {
 
     public MatchPhase phase() {
         return phase;
+    }
+
+    /**
+     * Free play: no match clock. Turning it on abandons any match in progress and holds FREE_PLAY, so robot outputs
+     * are never cut and HUB FUEL is counted without points. Turning it off keeps FREE_PLAY until the next enable.
+     */
+    public void setFreePlay(boolean on) {
+        if (on && !freePlay) {
+            phase = MatchPhase.FREE_PLAY;
+            firstInactive = Optional.empty();
+        }
+        freePlay = on;
+    }
+
+    public boolean freePlay() {
+        return freePlay;
     }
 
     /** Seconds left in AUTO or TELEOP; −1 outside a timed period. */
@@ -449,8 +477,12 @@ public final class RebuiltMatch implements ArenaParticipant {
         spawn(a, release, velocity);
     }
 
-    /** Called for every launched FUEL; G407 requires bumpers partly in the alliance's own zone. */
-    public void onLaunch(Alliance a, Pose3 robotPose, double hx, double hy) {
+    /**
+     * Called for every launched FUEL. G407 forbids launching into your own HUB unless your bumpers are partly in
+     * your ALLIANCE ZONE; launching elsewhere (passing FUEL back to your side) is legal. Out-of-zone launches are
+     * remembered per piece, and the foul is called only if that piece enters the launching alliance's HUB.
+     */
+    public void onLaunch(Alliance a, GamePiece piece, Pose3 robotPose, double hx, double hy) {
         if (phase == MatchPhase.FREE_PLAY || phase == MatchPhase.POST_MATCH) {
             return;
         }
@@ -461,10 +493,17 @@ public final class RebuiltMatch implements ArenaParticipant {
                 ? x - reach > RebuiltField.STARTING_LINE_X
                 : x + reach < RebuiltField.LENGTH - RebuiltField.STARTING_LINE_X;
         if (outside) {
-            fouls.merge(a, 1, Integer::sum);
-            score.merge(a.opponent(), FOUL_MAJOR, Integer::sum);
-            lastFoul = String.format("G407 %s launched from x=%.2f", a, x);
+            outOfZoneLaunches.put(piece.id(), a);
         }
+    }
+
+    private void foul(Alliance offender, String reason) {
+        if (phase == MatchPhase.FREE_PLAY) {
+            return;
+        }
+        fouls.merge(offender, 1, Integer::sum);
+        score.merge(offender.opponent(), FOUL_MAJOR, Integer::sum);
+        lastFoul = reason;
     }
 
     /** Every FUEL to draw: live bodies plus CHUTE and CORRAL stock (AdvantageScope hides its staged FUEL). */
