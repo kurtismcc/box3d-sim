@@ -82,7 +82,7 @@ public record CollisionFilter(long categoryBits, long maskBits) {}
 
 | Layer | Bit | Collides with |
 |---|---|---|
-| `FIELD` | 1L<<0 | everything except `FIELD` |
+| `FIELD` | 1L<<0 | `ROBOT`, `GAME_PIECE` |
 | `ROBOT` | 1L<<1 | `FIELD`, `ROBOT`, `GAME_PIECE`, `ROBOT_BLOCKER` |
 | `GAME_PIECE` | 1L<<2 | `FIELD`, `ROBOT`, `GAME_PIECE`, `PIECE_BLOCKER`, `SENSOR` |
 | `ROBOT_BLOCKER` | 1L<<3 | `ROBOT` only (invisible walls that stop robots, not balls) |
@@ -130,6 +130,7 @@ public record BodySpec(BodyType type, Pose3 pose, Vec3 linearVelocity, Vec3 angu
     public static BodySpec fixed(Pose3 pose);     // STATIC
     public BodySpec withLocks(MotionLocks l); public BodySpec withBullet(boolean b);
     public BodySpec withAwake(boolean a);         // false = created asleep (resting game pieces at match start)
+    public BodySpec withSleep(boolean enable);    // false for bodies that must never sleep (robot chassis)
     public BodySpec withGravityScale(double g); public BodySpec withDamping(double lin, double ang);
     public BodySpec withVelocity(Vec3 lin, Vec3 ang); public BodySpec withName(String n);
 }
