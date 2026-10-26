@@ -9,6 +9,7 @@ import box3dsim.world.BodyHandle;
 import box3dsim.world.BodyMove;
 import box3dsim.world.BodySpec;
 import box3dsim.world.CollisionLayers;
+import box3dsim.world.Material;
 import box3dsim.world.ShapeHandle;
 import box3dsim.world.ShapeOptions;
 import box3dsim.world.ShapeSpec;
@@ -31,6 +32,8 @@ public final class GamePieces implements ArenaParticipant {
     private static final double BULLET_SPEED = 5.0;
     private static final double OUT_OF_FIELD_MARGIN = 1.0;
     private static final double MIN_Z = -0.5;
+    private static final double GRAVITY = 9.81;
+    private static final double ON_FLOOR_TOLERANCE = 0.01;
 
     private final SimWorld world;
     private final Map<Integer, GamePiece> live = new LinkedHashMap<>();
@@ -57,7 +60,8 @@ public final class GamePieces implements ArenaParticipant {
                 .withAwake(awakeNow)
                 .withBullet(velocity.norm() > BULLET_SPEED));
         ShapeHandle shape = world.addShape(body, new ShapeSpec.Sphere(Vec3.ZERO, type.radius()),
-                ShapeOptions.solid(type.material(), type.density(), CollisionLayers.GAME_PIECE));
+                ShapeOptions.solid(withoutRollingResistance(type.material()), type.density(),
+                        CollisionLayers.GAME_PIECE));
         GamePiece piece = new GamePiece(nextId++, type, body, shape, pose, awakeNow);
         live.put(piece.id(), piece);
         byBody.put(body.id(), piece);
@@ -159,18 +163,31 @@ public final class GamePieces implements ArenaParticipant {
         }
     }
 
+    /**
+     * Box3D's own rolling resistance stops a sliding sphere from ever spinning up, so pushed or launched pieces
+     * would skid to a halt. Shapes get zero rolling resistance and prePhysics applies it as a force instead.
+     */
+    private static Material withoutRollingResistance(Material m) {
+        return new Material(m.friction(), m.restitution(), 0);
+    }
+
     @Override
     public void prePhysics(Arena arena, double dt) {
-        if (!aerodynamics) {
-            return;
-        }
         for (GamePiece p : awake) {
-            Vec3 v = world.linearVelocity(p.body());
-            double speed = v.norm();
-            if (speed < MIN_AERO_SPEED) {
+            GamePieceType t = p.type();
+            boolean onFloor = p.pose.position().z() < t.radius() + ON_FLOOR_TOLERANCE;
+            boolean rolling = onFloor && t.material().rollingResistance() > 0;
+            if (!rolling && !aerodynamics) {
                 continue;
             }
-            GamePieceType t = p.type();
+            Vec3 v = world.linearVelocity(p.body());
+            if (rolling && applyRollingResistance(p, v, dt)) {
+                continue;
+            }
+            double speed = v.norm();
+            if (!aerodynamics || speed < MIN_AERO_SPEED) {
+                continue;
+            }
             double area = Math.PI * t.radius() * t.radius();
             Vec3 w = world.angularVelocity(p.body());
             Vec3 force = v.times(-0.5 * AIR_DENSITY * t.dragCoefficient() * area * speed);
@@ -186,6 +203,23 @@ public final class GamePieces implements ArenaParticipant {
                 world.setVelocity(p.body(), v, w.times(Math.exp(-t.spinDecayPerSecond() * dt)));
             }
         }
+    }
+
+    /** Applies F = −C_rr·m·g along the ground velocity; returns true if the piece was stopped instead. */
+    private boolean applyRollingResistance(GamePiece p, Vec3 v, double dt) {
+        GamePieceType t = p.type();
+        double decel = t.material().rollingResistance() * GRAVITY;
+        double groundSpeed = Math.hypot(v.x(), v.y());
+        if (groundSpeed <= decel * dt) {
+            if (groundSpeed > 0 && Math.abs(v.z()) < 0.05) {
+                world.setVelocity(p.body(), new Vec3(0, 0, v.z()), Vec3.ZERO);
+                return true;
+            }
+            return false;
+        }
+        double scale = -t.mass() * decel / groundSpeed;
+        world.applyForceToCenter(p.body(), new Vec3(v.x() * scale, v.y() * scale, 0));
+        return false;
     }
 
     @Override

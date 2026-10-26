@@ -31,10 +31,10 @@ Items marked **ASSUMPTION** are not given by any source. Keep each one a named c
 
 | Name | friction | restitution | rolling resistance | Use |
 |---|---|---|---|---|
-| `CARPET` | 0.8 | 0.0 | 0.06 | floor. ASSUMPTION |
+| `CARPET` | 0.8 | 0.0 | **0** | floor. It must stay 0; see step 07's rolling-resistance note |
 | `POLYCARB` | 0.4 | 0.3 | 0 | guardrails, walls, hub, trench, tower |
 | `HDPE` | 0.3 | 0.2 | 0 | BUMP ramps |
-| `FUEL` | 0.6 | 0.35 | 0.05 | game piece. ASSUMPTION; calibrate in step 12 |
+| `FUEL` | 0.6 | 0.35 | 0.05 | game piece. ASSUMPTION; calibrate in step 12. Here rolling resistance is the C_rr that `GamePieces` applies as a force: a FUEL rolling at 2 m/s stops after about 4 m |
 
 Box3D mixes restitution as the max and friction as the geometric mean. The carpet restitution is therefore 0, so
 the ball's own value sets the bounce.
@@ -59,7 +59,7 @@ static body per element group.
 | Blue alliance wall | box x [−0.1, 0], z [0, 2.0], **except** the CORRAL opening: build as 3 boxes: y [−0.1, 0.2596], y [1.0724, W+0.1], and above the opening y [0.2596, 1.0724] z [0.2256, 2.0]. Plus a sill y [0.2596, 1.0724] z [0, 0.0478] | FIELD, POLYCARB |
 | CORRAL pocket | static floor is the carpet (it extends to x = −1). Side walls: boxes x [−0.955, −0.1], y [0.2096, 0.2596] and [1.0724, 1.1224], z [0, 0.2065]. Back wall: x [−1.0, −0.955], y [0.2096, 1.1224], z [0, 0.2065]. The CORRAL is 35.8 × 37.6 in with 8.13 in panels [M 5.9.2] | FIELD, POLYCARB |
 | CORRAL divider pipe | vertical box x [−0.05, 0], y [0.645, 0.687], z [0, 0.2256] (stands in for the 1.66 in OD pipe [M]) | FIELD, POLYCARB |
-| CORRAL sensor | box x [−0.9, −0.15], y [0.27, 1.06], z [0, 0.20] | SENSOR, sensor |
+| CORRAL sensor | box x [−0.9, −0.05], y [0.27, 1.06], z [0, 0.20]. It reaches into the opening, so a FUEL a bumper presses into the opening counts. A FUEL just touching the wall from the field side (center x = +0.075) doesn't reach it | SENSOR, sensor |
 | HUB base | box x [4.0285, 5.2225], y [3.4376, 4.6316], z [0, 1.40]. 47 in square centered (4.6255, 4.0346) [T]. Top height 1.40 is an ASSUMPTION (internal funnel unknown) | FIELD, POLYCARB |
 | HUB rim | 4 boxes, 0.064 m thick, z [1.40, 1.829] (72 in [M 5.4]) along the 4 edges of the base. Inner opening ≈ 1.066 m ≈ the 41.7 in hex [D]. Square rim is a simplification of the hex | FIELD, POLYCARB |
 | HUB score sensor | box x [4.13, 5.12], y [3.54, 4.53], z [1.42, 1.70] | SENSOR, sensor |
@@ -135,13 +135,17 @@ Arena with `RebuiltField.build(world)`. FUEL spawned with `RebuiltFuel.TYPE`.
    within 1 s, and comes to rest on the HUB base top (z ≈ 1.475).
 4. **Hub rim:** a FUEL dropped onto the rim edge at (4.0285 + 0.032, 4.0346, 2.5) does not rest inside the sensor
    volume after 2 s (it bounces off, in or out).
-5. **Trench clearance:** a FUEL rolled at 2 m/s along +x at y = 0.6, from x = 3.0, passes under the arm
-   (x > 5.3 after 2 s).
+5. **Trench clearance:** a FUEL already rolling (spin = ẑ × v / r) at 2 m/s along +x at y = 0.6, from x = 3.0,
+   passes under the arm (x > 5.3 after 2 s). From a sliding start it rolls at 5/7 of the speed and stops near
+   x = 5.1, which is also correct physics.
 6. **Bump:** a FUEL rolled at 3 m/s along +x at y = 2.5 from x = 3.5 rises above z = 0.2 while crossing the BUMP
    ridge. A box-shaped planar `ROBOT` body (0.9 × 0.9 × 0.3, `gravityScale 0`, `MotionLocks.PLANAR`) given
    vx = 2 m/s along the same line is not stopped: its x passes 5.3 within 1.5 s.
-7. **Corral:** a FUEL rolled at 2.5 m/s along −x from (1.0, 0.45, 0.075) enters `corralSensors[BLUE]` within 2 s.
-   y = 0.45 avoids the divider pipe at y ≈ 0.666, and 2.5 m/s clears the 0.048 m sill.
+7. **Corral:** a planar `ROBOT` box at bumper height pushes a FUEL into the opening. The box has half extents
+   (0.25, 0.25, 0.041), center z 0.105, and is driven at −1 m/s along −x from x = 0.9, y = 0.45. The FUEL starts
+   at (0.55, 0.45, 0.075). It enters `corralSensors[BLUE]` within 3 s. A freely rolled FUEL bounces back off the
+   1.88 in sill at any speed up to 5 m/s, and real robots push FUEL in, so the test pushes it too. y = 0.45
+   avoids the divider pipe at y ≈ 0.666.
 8. **Field bounds:** a FUEL rolled at 4 m/s toward the scoring-side guardrail bounces back (y stays ≥ 0.075 − 0.01).
 9. **Settled start:** spawn all 360 + 48 FUEL asleep. After 1 s, no FUEL has moved more than 1 mm, and the awake count is 0.
 

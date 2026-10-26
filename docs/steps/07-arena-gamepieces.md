@@ -109,6 +109,21 @@ public final class GamePieces implements ArenaParticipant {
 For each `BodyMove` in `world.bodyMoves()` whose body belongs to a piece: update the cached pose. If `fellAsleep`,
 remove the piece from the awake set; otherwise add it. Ignore bodies that aren't pieces (robots).
 
+### Rolling resistance (`prePhysics`)
+
+**Don't use Box3D's `rollingResistance`.** Measured at the pinned commit: with any value above 0 (even 0.002), a
+sphere that starts sliding with no spin never spins up, and sliding friction stops it within about 0.3 s. Pushed,
+bounced and spawned FUEL would therefore skid to a halt instead of rolling. With 0, a ball rolls forever.
+
+So `spawn` creates the shape with `rollingResistance = 0`, and `GamePieces` treats
+`type.material().rollingResistance()` as a rolling-resistance coefficient C_rr:
+
+- It applies to every awake piece with z < radius + 0.01, meaning it's on the floor.
+- The force is `F = −C_rr·m·g` along the horizontal velocity, applied with `applyForceToCenter`.
+- If the ground speed is below `C_rr·g·dt` (and |vz| < 0.05), set the velocity to zero instead of reversing it.
+
+Floor materials (the carpet) must also keep `rollingResistance = 0`, because Box3D mixes it as the max of the two shapes.
+
 ### Aerodynamics (`prePhysics`, when enabled)
 
 For each awake piece:
