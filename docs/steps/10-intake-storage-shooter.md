@@ -185,12 +185,16 @@ The flywheel is a Vortex 1:1, J = 0.004, r = 0.0508, shotDirectionSign −1, exi
 0.7. The hood is fixed at a 60° pitch (`hoodPositionToPitch = p → 60°`). The exit point is (0.1, 0, 0.64), yaw 0,
 so the FUEL's bottom (0.565) clears the 0.55 m superstructure.
 
-1. **Launch:** spin the flywheel at −12 V for 2 s, then `launch`. A ball spawns at the exit point with speed
+Spin up for **6 s** in every test. The Vortex-plus-flywheel time constant J·R·Kv/Kt is about 0.8 s, so after 2 s
+the wheel is still accelerating, and "recovery" would overshoot the pre-burst speed.
+
+1. **Launch:** spin the flywheel at −12 V, then `launch`. A ball spawns at the exit point with speed
    ≈ 0.48·|ω_before|·r ± 2% and pitch 60° ± 0.5°. ω_before is the flywheel speed just before the shot.
 2. **Flywheel drop:** after the shot, |ω| equals `sqrt(ω_before² − 2E/(0.7·J))` within 1%.
 3. **Recovery:** after a 5-shot burst at 0.1 s spacing under 12 V, the flywheel recovers to within 5% of its
    pre-burst speed within 1 s. This is the property real shooter tuning depends on.
-4. **Moving robot:** with the robot driving at +2 m/s, the ball's field vx exceeds the stationary case by 2 m/s ± 0.05.
+4. **Moving robot:** set the chassis to +2 m/s (coast wheels) and step once. The ball's field vx equals the
+   chassis vx + 0.48·|ω|·r·cos 60° ± 0.05, with ω read just before the launch.
 5. **Refusal:** with the flywheel stopped, `launch` returns false.
 
 ## Acceptance
