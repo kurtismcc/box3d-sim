@@ -180,6 +180,7 @@ public final class SwerveDriveSim implements ElectricalLoad {     // + ArenaPart
     void ensureMass();
     LumpedMechanism steer(int i);              // package-private, for tests
     double normalLoad(int i);                  // package-private, for tests; N from the last prePhysics
+    void setWheelVelocity(int i, double radPerSec); // package-private, for tests (coast-down from speed)
     @Override public double supplyCurrent();   // sum of drive and steer supply currents
 }
 ```
