@@ -25,7 +25,8 @@ dependencies {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    options.compilerArgs.addAll(['-Xlint:all', '-Xlint:-serial'])
+    // FFM calls are restricted methods by design; jextract output would otherwise emit hundreds of warnings.
+    options.compilerArgs.addAll(['-Xlint:all', '-Xlint:-serial', '-Xlint:-restricted'])
 }
 
 test {

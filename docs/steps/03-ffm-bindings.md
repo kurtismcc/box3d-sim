@@ -154,7 +154,9 @@ The test JVM already gets `--enable-native-access=ALL-UNNAMED` (step 01), so the
 
 - `pwsh scripts/get-jextract.ps1` and then `pwsh scripts/generate-bindings.ps1` produce `src/main/java/box3dsim/ffm/gen/`.
 - `.\gradlew.bat build` passes, and `Box3dSmokeTest` passes.
-- `git grep -n "b3MakeQuat\|b3Add(" src/main/java/box3dsim/ffm/gen` finds nothing, because inline helpers are
-  excluded.
+- `git grep -n 'findOrThrow("b3MakeQuat")\|findOrThrow("b3Add")' src/main/java/box3dsim/ffm/gen` finds nothing,
+  because inline helpers are excluded. A plain `b3MakeQuat` grep matches the exported `b3MakeQuatFromMatrix`.
+- Add `-Xlint:-restricted` to the compiler args in `build.gradle`. The generated code calls restricted FFM methods
+  everywhere, and `-Xlint:all` would print hundreds of warnings.
 
 Commit: `Generate Box3D FFM bindings and native loader`.
