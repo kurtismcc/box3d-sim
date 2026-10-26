@@ -1,5 +1,7 @@
 package box3dsim.drive;
 
+import box3dsim.arena.Arena;
+import box3dsim.arena.ArenaParticipant;
 import box3dsim.math.Pose3;
 import box3dsim.math.Vec3;
 import box3dsim.motor.Battery;
@@ -20,7 +22,7 @@ import java.util.List;
  * Swerve chassis as a planar body that never touches the carpet. All traction comes from a per-wheel slip-velocity
  * tire model; normal loads come from static weight plus analytic load transfer.
  */
-public final class SwerveDriveSim implements ElectricalLoad {
+public final class SwerveDriveSim implements ArenaParticipant, ElectricalLoad {
     private static final double GRAVITY = 9.81;
     private static final int WHEEL_MICRO_STEPS = 10;
     private static final double ACCEL_FILTER_TIME_CONSTANT = 0.05;
@@ -215,6 +217,16 @@ public final class SwerveDriveSim implements ElectricalLoad {
             m.driveStator = sumStator / WHEEL_MICRO_STEPS;
             m.driveSupply = ElectricalLoad.supplyFromStator(m.driveStator, m.driveApplied, vBat);
         }
+    }
+
+    @Override
+    public void prePhysics(Arena arena, double dt) {
+        prePhysics(dt);
+    }
+
+    @Override
+    public void postPhysics(Arena arena, double dt) {
+        postPhysics(dt);
     }
 
     /** Reads back the chassis state after the world step. */
