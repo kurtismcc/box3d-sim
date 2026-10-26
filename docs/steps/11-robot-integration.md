@@ -178,7 +178,7 @@ happens when the drive team places the robot.
 | Storage | capacity **40 (ASSUMPTION)**, preload 8 [G303] |
 | Intake roller | NEO 550 (ASSUMPTION), gearing 3, J = 5e-4, radius 0.03, direction −1 (`IntakeRun` uses −0.9), efficiency 0.7, min surface speed 0.8 |
 | Intake pivot | NEO (ASSUMPTION), gearing 65.14 (−19 motor rotations = 105° of travel, ASSUMPTION), J = 0.15, friction 0.5 N·m. Limits from −19.5 to +0.3 motor rotations, converted to mechanism rad (negative = down). Deployed at −19 rotations, stowed at 0, deployed fraction 0.9 |
-| Intake zone | on the robot **front** (ASSUMPTION; confirm side), center (0.55, 0, 0.075), half extents (0.10, 0.30, 0.10) |
+| Intake zone | on the robot **back** (confirmed by Kurtis 2026-10-26), across the full bumper width: center (−0.55, 0, 0.075), half extents (0.10, 0.45, 0.10). Deployed fraction 0: FUEL touching the back bumper is taken whenever the roller spins in the intake direction, whatever the pivot state |
 | Start pose | blue (3.5, 4.0545, 0) is the `Backup Center` path start (y = 4.054489); red = `mirror` with yaw π |
 
 ### `SparkBinding.java`: one Spark ↔ one simulated degree of freedom

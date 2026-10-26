@@ -135,7 +135,7 @@ None of these block implementation; each has a default in the step docs. The ans
 
 | # | Question | Default used | Where |
 |---|---|---|---|
-| 1 | Which side is the intake on, and how wide is it? | front, 0.6 m zone | step 11 `SimConstants` |
+| 1 | Which side is the intake on, and how wide is it? | **answered: back**; full 0.9 m bumper width; intake direction only; deploy state ignored | step 11 `SimConstants` |
 | 2 | Hopper capacity? | 40 FUEL | step 11 |
 | 3 | Flywheel diameter and gearing; hood angle at the hub preset (0) and at −8.5 rotations | 4 in, 1:1; 72° and 55° | steps 11, 12 |
 | 4 | Robot height: did it fit under the TRENCH (22.25 in)? | 0.55 m (fits) | step 11 |
