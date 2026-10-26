@@ -77,7 +77,7 @@ test {
     jvmArgs '--enable-native-access=ALL-UNNAMED'
     testLogging {
         events 'failed'
-        exceptionFormat 'full'
+        exceptionFormat = 'full'
     }
 }
 

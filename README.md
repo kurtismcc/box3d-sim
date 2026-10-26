@@ -41,7 +41,7 @@ Visualization                         poses over NetworkTables → AdvantageScop
 
 ## Status
 
-Research. Nothing is built yet.
+v0 in progress. See [docs/plan.md](docs/plan.md).
 
 ## Constraints
 

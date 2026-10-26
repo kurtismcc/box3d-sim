@@ -1,0 +1,9 @@
+.gradle/
+build/
+native-build/
+tools/
+logs/
+*.wpilog
+.idea/
+*.iml
+.vscode/

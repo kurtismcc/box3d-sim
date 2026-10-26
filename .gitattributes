@@ -1,0 +1,5 @@
+*.dll binary
+*.so binary
+*.dylib binary
+gradlew text eol=lf
+*.bat text eol=crlf
