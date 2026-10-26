@@ -56,11 +56,14 @@ runner needs them for its checks. The robot-side values come from `rc.getDriveSu
 |---|---|
 | 0 | `setDsAttached(true)`, `setAllianceStationId(BLUE1)`, `setRobotMode(AUTONOMOUS)`, `setEnabled(false)` |
 | 0.5 | `setEnabled(true)`. `RebuiltMatch` starts AUTO on this edge, and `Robot.autonomousInit()` schedules the auto |
-| 0.5–20.5 | `setMatchTime(20 − (t − 0.5))` |
-| 20.5 | `setEnabled(false)`; `RebuiltMatch` has already cut outputs at 20.0 s of AUTO |
-| 23.5 | `SIM_MATCH=auto`: finish (the 3 s AUTO scoring grace is over). `full`: `setRobotMode(TELEOPERATED)`, `setEnabled(true)` |
-| 23.5–163.5 | `full` only: `setMatchTime(140 − (t − 23.5))` |
+| every loop | `setMatchTime(match.matchTimeRemaining())` |
+| 20.5 | `RobotSim` (acting as FMS) disables the robot at the end of AUTO |
+| 23.5 | `SIM_MATCH=auto`: finish (the 3 s AUTO scoring grace is over). `full`: `RobotSim` switches to TELEOPERATED and enables |
+| 163.5 | `full` only: `RobotSim` disables the robot at POST_MATCH |
 | 163.5 + 3 | `full` only: finish (POST_MATCH plus 3 s scoring grace) |
+
+The runner scripts only the match start. In `full` mode it checks that the robot is disabled 0.5 s after AUTO ends,
+teleop-enabled 1 s after TELEOP starts and disabled 1 s after the match ends.
 
 - Call `DriverStationSim.notifyNewData()` after every change, and once every loop anyway. The robot only sees DS
   changes after new data is signalled.

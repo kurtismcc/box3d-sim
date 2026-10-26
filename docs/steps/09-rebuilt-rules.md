@@ -11,9 +11,15 @@ Package `box3dsim.season.rebuilt2026`.
 ## Why the sim owns the match clock
 
 The WPILib 2027 sim GUI doesn't run a timed match. It has no auto→teleop transition and no disable at the end, and
-match time stays −1 unless typed in. The GUI also re-pushes its DS state every frame, so the sim can't drive the
-DS from code. The rules engine therefore runs its own clock from the enable/mode edges it observes, and it tells
-the robot integration (step 11) when robot outputs must be cut, the way the FMS would disable the robot.
+match time stays −1 unless typed in.
+
+The rules engine therefore runs its own clock from the enable/mode edges it observes. It tells the robot
+integration (step 11) when robot outputs must be cut. Step 11 acts as FMS: it disables the robot through
+`DriverStationSim` at the end of AUTO and TELEOP, and enables TELEOP 3 s after AUTO. The GUI mirrors that state.
+(An earlier version of this doc said the GUI overwrote code-set DS state; it doesn't.)
+
+**Free play:** `setFreePlay(true)` abandons any match and holds FREE_PLAY, ignoring DS edges. Outputs are never
+cut, and HUB FUEL counts as `freePlayFuel` without points. Turning it off keeps FREE_PLAY until the next enable.
 
 ## Inputs (set every robot loop by step 11, before the substeps)
 
@@ -115,12 +121,17 @@ State: `chute` (stored count, starts 24 [M 6.3.4]) and `corral` (starts 0). Capa
 
 ## Fouls (cheap subset)
 
-`onLaunch(Alliance a, Pose3 robotPose, double hx, double hy)` is called by the shooter (step 10) for every launched
-FUEL. `hx` and `hy` are the bumper half-length and half-width.
+`onLaunch(Alliance a, GamePiece piece, Pose3 robotPose, double hx, double hy)` is called by the shooter (step 10)
+for every launched FUEL. `hx` and `hy` are the bumper half-length and half-width.
 
-- **G407:** the robot's BUMPERS must be partly in its own ALLIANCE ZONE. For blue, foul if the bumper's nearest
-  x extent is past the line: `robotPose.x − (|cos ψ|·hx + |sin ψ|·hy) > STARTING_LINE_X`, where ψ is the robot
-  yaw. Red: foul if `robotPose.x + (|cos ψ|·hx + |sin ψ|·hy) < L − STARTING_LINE_X`.
+- **G407** (manual TU22): "A ROBOT may not launch a SCORING ELEMENT into their HUB unless their BUMPERS are
+  partially or fully within their ALLIANCE ZONE." **Launching from anywhere else is legal**, for example passing
+  FUEL from midfield back to your side.
+- So `onLaunch` only *remembers* out-of-zone launches per piece id. For blue, "out of zone" means
+  `robotPose.x − (|cos ψ|·hx + |sin ψ|·hy) > STARTING_LINE_X`; for red,
+  `robotPose.x + (|cos ψ|·hx + |sin ψ|·hy) < L − STARTING_LINE_X`; ψ is the robot yaw.
+- The foul is called when such a piece enters the **launching alliance's own** HUB sensor. FUEL into the opponent's
+  HUB is not G407.
 - **Penalty:** MAJOR FOUL, 15 points to the opponent [M 6.6]. Only during the match (not FREE_PLAY).
 - Count `fouls[a]` and log the last foul reason as a string.
 
@@ -184,7 +195,9 @@ Arena + `RebuiltField.build` + `RebuiltMatch`. Drive the DS state by hand and us
    to the chute (25 cap). `releaseChute` empties a 25-chute in about 3.75 s, spawning FUEL near x = 0.1.
 7. **Human throw:** with drag on, 20 `throwAtHub(BLUE)` calls in TRANSITION score at least 6 (`fuelProcessed`).
    This checks that the aim solver points the right way. The threshold is loose by design.
-8. **G407:** `onLaunch(BLUE, pose x = 6.0)` during TRANSITION adds 15 to RED and increments `fouls(BLUE)`;
+8. **G407** (revised: see the fouls section). A piece launched from x = 6.0 into the blue HUB fouls once it enters.
+   A pass from midfield onto the floor, a launch from inside the zone, and a launch into the red HUB do not foul.
+   Originally the test read: `onLaunch(BLUE, pose x = 6.0)` during TRANSITION adds 15 to RED and increments `fouls(BLUE)`;
    `onLaunch(BLUE, pose x = 3.0)` adds nothing.
 9. **Display:** after reset, `fuelDisplayPoses().size() == 360 + 48 + 48`. That is AdvantageScope's staged count
    (456), and it proves stored FUEL is included.

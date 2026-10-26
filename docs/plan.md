@@ -70,7 +70,9 @@ F:\Projects\box3d-sim (library, box3dsim:box3d-sim, no WPILib dependency)
    BUMPs can't be driven over physically, so robots ignore them in v0.
 5. **FUEL are always real bodies.** There is no analytic projectile. Air drag and Magnus lift are applied per
    step, and sleeping keeps the ~400 resting FUEL cheap.
-6. **The sim owns the match clock.** The 2027 sim GUI has no timed match and overwrites DS state from code, so
+6. **The sim owns the match clock.** The 2027 sim GUI has no timed match. (Revised: the GUI does mirror DS state that
+   code sets, so `RobotSim` now acts as FMS, disabling at AUTO and TELEOP end and enabling TELEOP after AUTO; see
+   `research-2027-sim-apis.md`.) Originally:
    the rules engine reads enable/mode edges and cuts robot outputs (`SparkSim.disable()`) between AUTO and
    TELEOP and after the match.
 7. **Robot code changes stay minimal:** a sim mode switch, hardware accessors, one pose-reset hook, a

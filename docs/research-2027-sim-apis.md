@@ -33,8 +33,12 @@ These are the versions `D:\Projects\2026-Offseason` uses. "Inferred" marks concl
 - **No timed match:** match time is −1 unless typed into the FMS window. Even then it only counts down; there is
   no auto→teleop transition and no disable.
 - **Default alliance is RED 1.**
-- The GUI pushes DS data every frame while timing isn't paused, so code-side `DriverStationSim` writes get
-  overwritten (inferred).
+- **Corrected 2026-10-26** (the earlier note here was wrong): every frame the GUI **reads** the DS state from HAL
+  (`DSSimModel::Update()`). It writes HAL (`UpdateHAL()`) only when you click a control.
+  - So `DriverStationSim.setEnabled` and `setRobotMode` from code stick, and both the GUI and AdvantageKit show
+    them. box3d-sim's `RobotSim` uses this to act as FMS.
+  - The exception is match time. While enabled, the GUI recomputes it from its own clock and writes it every frame
+    (−1 unless a time was typed in), so code can't set it.
 
 ## WPILib sim classes
 

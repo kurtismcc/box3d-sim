@@ -71,7 +71,7 @@ blue, and the scoring-table side at y ≈ 0. Red elements are blue ones rotated 
 
 | Rule | Meaning | Sim |
 |---|---|---|
-| G407 | launch into the HUB only with BUMPERS partly in your own ALLIANCE ZONE (MAJOR) | enforced |
+| G407 | may not launch into **your own** HUB unless your BUMPERS are partly in your ALLIANCE ZONE (MAJOR). Launching elsewhere, such as passing from midfield, is legal | enforced: only when an out-of-zone launch enters the launcher's own HUB |
 | G403 | no fully crossing the CENTER LINE in AUTO | not enforced |
 | G405 | no ejecting FUEL off the field except via the OUTPOST base opening | out-of-field count only |
 | G425 / G427 | human player FUEL entry routes; OUTPOST storage limit | modeled as chute/corral actions |
