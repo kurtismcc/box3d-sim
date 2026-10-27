@@ -140,7 +140,7 @@ None of these block implementation; each has a default in the step docs. The ans
 | 1 | Which side is the intake on, and how wide is it? | **answered: back**; 0.53 m roller span (CAD); intake direction only; deploy state ignored | step 11 `SimConstants` |
 | 2 | Hopper capacity? | 40 FUEL | step 11 |
 | 3 | Flywheel diameter and gearing; hood angle at the hub preset (0) and at −8.5 rotations | **answered (CAD)**: 4 in, Vortex 1:1, 2 in top roller; hood zip-tied at 0 as raced, 78° fixed | steps 11, 12 |
-| 4 | Robot height: did it fit under the TRENCH (22.25 in)? | 0.55 m (fits) | step 11 |
+| 4 | Robot height: did it fit under the TRENCH (22.25 in)? | **answered**: yes, filed down to fit; 0.55 m (CAD top 0.583 m predates the filing) | step 11 |
 | 5 | Hood, feeder, indexer, intake motors: NEO or NEO 550? Intake pivot gearing? | **motors answered (CAD)**: all NEO. Pivot: NEO, 20:1 planetary, 16T #25 sprocket into an unknown sprocket; 65:1 kept | step 11 |
 | 6 | Real drive gearing: the code uses 3.625 for encoders, 3.0 for feedforward, and 4.23 in PathPlanner | 3.625 (matches odometry) | step 11 |
 | 7 | Real module spacing: 27.5 in in code vs 0.546 m in PathPlanner | 27.5 in (what kinematics uses) | step 11 |

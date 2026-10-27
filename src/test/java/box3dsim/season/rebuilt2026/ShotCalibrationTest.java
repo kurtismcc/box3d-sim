@@ -86,7 +86,7 @@ class ShotCalibrationTest {
             }
         }
         System.out.print(table);
-        // Shoot at Hub auto end point: robot center at x = 2.75, exit 0.10 ahead of it.
+        // Shoot at Hub auto end point: robot center at x = 2.75, exit EXIT_AHEAD ahead of it.
         Result auto = shoot(hub, HUB_X - 2.75 - EXIT_AHEAD);
         assertTrue(auto.inOpening(), "hub preset from the auto end point misses: " + auto);
     }
