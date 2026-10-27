@@ -25,7 +25,7 @@ class ShotCalibrationTest {
     private static final double HUB_X = 4.6255;
     private static final double HUB_Y = 4.0346;
     private static final double OPENING_Z = 1.829;
-    private static final double EXIT_AHEAD = 0.10;
+    private static final double EXIT_AHEAD = 0.195;
 
     private record Preset(String name, double rpm, double hoodMotorRotations) {}
 
@@ -33,9 +33,9 @@ class ShotCalibrationTest {
 
     private static ShooterConfig shooterConfig() {
         LumpedMechanism.Config flywheel =
-                LumpedMechanism.Config.of(DcMotor.neoVortex(1), 1, 0.004).withFriction(0.05, 1e-4);
-        LumpedMechanism.Config hood = LumpedMechanism.Config.of(DcMotor.neo550(1), 180, 0.01).withFriction(0.2, 0);
-        return new ShooterConfig(flywheel, 0.0508, -1, 0.48, 0.8, 0.7, 2.0, hood, p -> Math.toRadians(72) + p,
+                LumpedMechanism.Config.of(DcMotor.neoVortex(1), 1, 0.003).withFriction(0.05, 1e-4);
+        LumpedMechanism.Config hood = LumpedMechanism.Config.of(DcMotor.neo(1), 1, 1e-4).withFriction(0.02, 0);
+        return new ShooterConfig(flywheel, 0.0508, -1, 0.55, 0.33, 0.7, 2.0, hood, p -> Math.toRadians(78),
                 new Vec3(EXIT_AHEAD, 0, 0.64), 0, RebuiltFuel.TYPE);
     }
 
@@ -49,7 +49,7 @@ class ShotCalibrationTest {
             arena.addParticipant(shooter);
             arena.step();
             shooter.flywheel().setState(0, -preset.rpm() * 2 * Math.PI / 60);
-            shooter.hood().setState(preset.hoodMotorRotations() * 2 * Math.PI / 180, 0);
+            shooter.hood().setState(preset.hoodMotorRotations() * 2 * Math.PI, 0);
             assertTrue(shooter.launch(RebuiltFuel.TYPE));
             GamePiece ball = arena.gamePieces().all().stream()
                     .max(Comparator.comparingInt(GamePiece::id)).orElseThrow();
