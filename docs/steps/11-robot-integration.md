@@ -171,14 +171,14 @@ happens when the drive team places the robot.
 | Group | Values |
 |---|---|
 | Swerve | Same numbers as `TestConfigs.maxSwerve()` in step 06: module positions ±0.3493 (from `Drive.Constants`), Vortex drive at gearing **3.625** (`DRIVING_FACTOR`, so encoder conversions are exact), wheel radius 0.0381, wheel MOI 0.002, drive friction 0.15 N·m, NEO 550 steer at gearing 46.42, steer MOI 0.004, steer friction 0.1. Mass 50, yaw MOI 6.883, cg 0.20, bumper 0.9 × 0.9 (bottom 0.0635, height 0.0825), robot height **0.55 (ASSUMPTION; ≤ 0.565 m trench clearance)**, frame inset 0.08, `TireConfig.defaults()`, `GyroConfig.pigeon2()`, load transfer on |
-| Flywheel | Vortex 1:1 (ASSUMPTION), J = 0.004 (ASSUMPTION: two 4 in wheels and a shaft), friction 0.05 N·m, viscous 1e-4. Radius 0.0508 (4 in, ASSUMPTION). Shot direction −1 (code: negative RPM shoots). Exit ratio 0.48, spin ratio 0.8, efficiency 0.7, min exit speed 2.0 m/s |
-| Hood | Motor NEO 550 (ASSUMPTION). Gearing 180 motor rotations per hood rotation (so 1 motor rotation = 2°, ASSUMPTION). MOI 0.01, friction 0.2 N·m. Limits −12 to +0.5 motor rotations, converted to hood rad. Pitch = 72° + 2°·(motor rotations), so the hub shot (0) is 72° and the side shot (−8.5) is 55° (ASSUMPTION: calibrate in step 12). With this gearing one motor rotation is 2° of hood, so `hoodPositionToPitch = p -> Math.toRadians(72) + p` (p is the hood angle in rad). The exit point (0.10, 0, 0.64) puts the FUEL's bottom (0.565) above the 0.55 m superstructure, with exit yaw 0 (robot front: the `Shoot at Hub` auto faces the hub) |
-| Indexer | NEO 550 (ASSUMPTION), gearing 5, J = 5e-4, roller radius 0.025, direction sign −1 (code feeds with −8 V), efficiency 0.8, min surface speed 0.3 |
-| Feeder | NEO 550 (ASSUMPTION), gearing 3, J = 3e-4, roller radius 0.025, direction −1 (code feeds with −11 V), efficiency 0.8, min surface speed 0.5 |
+| Flywheel | Vortex belted 1:1 (CAD; one Vortex as raced) to two SDS 4 in flywheels plus 4 in rollers. J = 0.003 (CAD flywheels 0.0023 plus an estimate for the rollers and shafts), friction 0.05 N·m, viscous 1e-4. Radius 0.0508. Shot direction −1 (code: negative RPM shoots). A 2 in top roller geared 1:1 counter-rotates against it, pinching the FUEL (~24 mm squeeze). Exit ratio 0.55 (no-slip pinch would be 0.75; calibrated in step 12), spin ratio 0.33 ((4 − 2)/(4 + 2)), efficiency 0.7, min exit speed 2.0 m/s |
+| Hood | CAD: a 180T sector on the flywheel axis driven by a 24T pinion on a NEO (7.5:1). As raced, the belt was cut and the hood zip-tied at 0, so the NEO spins unloaded (1:1, J = 1e-4, friction 0.02 N·m) and the launch pitch is fixed at the pinch exit angle, 78° (CAD). The pinch exit (x 0.17, z 0.51) is moved 0.13 m along the launch line to (0.195, 0, 0.64), so the FUEL's bottom clears the 0.55 m chassis box. Exit yaw 0 (robot front: the `Shoot at Hub` auto faces the hub) |
+| Indexer | NEO (CAD), gearing 5, J = 5e-4, roller radius 0.025, direction sign −1 (code feeds with −8 V), efficiency 0.8, min surface speed 0.3 |
+| Feeder | NEO with a 3:1 planetary into 3 in rollers (CAD): gearing 3, J = 3e-4, roller radius 0.0381, direction −1 (code feeds with −11 V), efficiency 0.8, min surface speed 0.5 |
 | Storage | capacity **40 (ASSUMPTION)**, preload 8 [G303] |
-| Intake roller | NEO 550 (ASSUMPTION), gearing 3, J = 5e-4, radius 0.03, direction −1 (`IntakeRun` uses −0.9), efficiency 0.7, min surface speed 0.8 |
+| Intake roller | NEO with a 3:1 planetary into 2 in flex wheels (CAD): gearing 3, J = 5e-4, radius 0.0254, direction −1 (`IntakeRun` uses −0.9), efficiency 0.7, min surface speed 0.8 |
 | Intake pivot | NEO (ASSUMPTION), gearing 65.14 (−19 motor rotations = 105° of travel, ASSUMPTION), J = 0.15, friction 0.5 N·m. Limits from −19.5 to +0.3 motor rotations, converted to mechanism rad (negative = down). Deployed at −19 rotations, stowed at 0, deployed fraction 0.9 |
-| Intake zone | on the robot **back** (confirmed by Kurtis 2026-10-26), across the full bumper width: center (−0.55, 0, 0.075), half extents (0.10, 0.45, 0.10). Deployed fraction 0: FUEL touching the back bumper is taken whenever the roller spins in the intake direction, whatever the pivot state |
+| Intake zone | on the robot **back** (confirmed by Kurtis 2026-10-26), across the 0.53 m roller span from CAD: center (−0.55, 0, 0.075), half extents (0.10, 0.265, 0.10). Deployed fraction 0: FUEL touching the back bumper is taken whenever the roller spins in the intake direction, whatever the pivot state |
 | Start pose | blue (3.5, 4.0545, 0) is the `Backup Center` path start (y = 4.054489); red = `mirror` with yaw π |
 
 ### `SparkBinding.java`: one Spark ↔ one simulated degree of freedom
@@ -224,9 +224,9 @@ velocity and REV computes current from it.
 | Drive ×4 (SparkFlex) | `getNeoVortex(1)` | wheel ω·3.625·60/2π (motor RPM) | relative: wheel φ·3.625/2π rotations |
 | Turn ×4 (SparkMax, absolute feedback) | `getNeo550(1).withReduction(46.42)` | steer ω·60/2π (module RPM). **Before** `iterate`, set `sim.setPosition(pv)` where `a = wrap01((θ_s + offset)/2π)`, `sp = sim.getSetpoint()`, `pv = sp + wrapHalf(a − sp)` and `wrapHalf` maps into (−0.5, 0.5] | absolute: `wrap01((θ_s + offset)/2π)` and module RPM. Relative: θ_s·46.42/2π and motor RPM, so `turnVelocityRadPerSec` logs something |
 | Flywheel (SparkFlex) | `getNeoVortex(1)` | flywheel ω·60/2π (motor = flywheel, 1:1) | relative position |
-| Hood (SparkMax) | `getNeo550(1)` | hood ω·180·60/2π | relative: hood rad·180/2π |
-| Feeder, Indexer (SparkMax) | `getNeo550(1)` | roller ω·G·60/2π | relative |
-| Intake roller (SparkMax) | `getNeo550(1)` | roller ω·3·60/2π | relative |
+| Hood (SparkMax) | `getNEO(1)` | motor ω·60/2π (belt cut) | relative: motor rad/2π |
+| Feeder, Indexer (SparkMax) | `getNEO(1)` | roller ω·G·60/2π | relative |
+| Intake roller (SparkMax) | `getNEO(1)` | roller ω·3·60/2π | relative |
 | Intake drop (SparkMax, MAXMotion on relative) | `getNEO(1)` | pivot ω·65.14·60/2π | relative: pivot rad·65.14/2π (start 0 = stowed) |
 
 `offset` is the module's `getChassisAngularOffset()`. The robot computes `turnPositionRad = abs·2π − offset`, so
@@ -323,7 +323,7 @@ There is no second driver, so the human player and field reset get two sources. 
 | `FieldSimulation/RobotPose` | `Pose3d` true pose, converted from `Pose3` |
 | `FieldSimulation/RobotPose2d` | `Pose2d` true pose |
 | `FieldSimulation/Fuel` | `Pose3d[]` from `match.fuelDisplayPoses()` (**all** FUEL, so AdvantageScope's staged FUEL hides correctly) |
-| `FieldSimulation/Components` | `Pose3d[]` robot-relative: [0] intake pivot, a rotation about robot +y by the pivot angle at (0.35, 0, 0.20); [1] hood, a rotation about +y by (pitch − 72°) at (0.10, 0, 0.55). These are placeholders for a future custom robot model |
+| `FieldSimulation/Components` | `Pose3d[]` robot-relative: [0] intake pivot, a rotation about robot +y by the pivot angle at (0.35, 0, 0.20); [1] hood, a rotation about +y by (pitch − 78°) at (0.10, 0, 0.55). These are placeholders for a future custom robot model |
 | `FieldSimulation/Match/Phase`, `/MatchTime`, `/PhaseTime`, `/OutputsAllowed` | strings and doubles |
 | `FieldSimulation/Match/BlueScore`, `/RedScore`, `/BlueHubActive`, `/RedHubActive`, `/FirstInactive` | |
 | `FieldSimulation/Match/BlueFouls`, `/RedFouls`, `/LastFoul` | |

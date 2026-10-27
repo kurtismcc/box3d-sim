@@ -17,7 +17,7 @@ assertion.
   - Set the flywheel ω directly with `setState`.
   - Set the hood position directly.
   - Place the robot facing the blue HUB so the **exit point** is at horizontal distance d = 1.0, 1.5, 2.0, 2.5,
-    3.0 m from the HUB center. With the exit 0.10 m ahead of the robot center, d = 1.0 leaves the bumper about
+    3.0 m from the HUB center. With the exit 0.195 m ahead of the robot center, d = 1.0 leaves the bumper about
     5 cm clear of the HUB face.
   - Launch one FUEL with drag and Magnus on.
 - **Record** the FUEL's x-y position when it descends through z = 1.829 (the HUB opening height), or where it lands
@@ -28,37 +28,41 @@ assertion.
   ```
 
   `in_opening` is |x − 4.6255| < 0.53 and |y − 4.0346| < 0.53.
-- **Single assertion:** the hub preset at d = 1.78 m (the `Shoot at Hub` auto's end point, 4.6255 − 2.75 − 0.10)
+- **Single assertion:** the hub preset at d = 1.68 m (the `Shoot at Hub` auto's end point, 4.6255 − 2.75 − 0.195)
   has `in_opening == true`.
-- **If it fails:** adjust `exitSpeedRatio` (0.35–0.60) first, then the hood pitch mapping (`72° + 2°/rot`) within
-  ±10°. Record the chosen values in step 11's `SimConstants` and in this doc's table below. **Ask Kurtis** where the
+- **If it fails:** adjust `exitSpeedRatio` (0.35–0.75) first, then the launch pitch within ±10°. Record the chosen values in step 11's `SimConstants` and in this doc's table below. **Ask Kurtis** where the
   real shots landed from the auto start (or from tape marks at SoCal Showdown) before tuning further. The real
   robot is the ground truth, and these constants are guesses.
 
-**Measured with the v0 defaults (2026-10-26):**
+**Calibrated 2026-10-26 from the team's Onshape CAD and Kurtis's notes.** Ground truth: the hood was zip-tied at 0
+at SoCal Showdown, and the hub preset sank shots reliably from the end of the auto. The CAD shows a two-wheel
+pinch: 4 in flywheels below and in front, a 2 in top roller geared 1:1 behind, ball exit at 78°. Sweeping
+`exitSpeedRatio` at 78° and 2700 rpm, ratios 0.45–0.60 score from the auto end point (d = 1.68 m with the exit 0.195
+ahead of the robot center); 0.55 sits in the middle of that band.
 
 | preset | d (m) | crossing x | in opening | apex z |
 |---|---|---|---|---|
-| hub (2700 rpm, hood 0) | 1.0 | 3.33 (bounced back) | no | 2.62 |
-| hub | 1.5 | 4.61 | yes | 2.74 |
-| hub | 2.0 | 4.69 | yes | 2.74 |
-| hub | 2.5 | 4.19 | yes | 2.74 |
-| hub | 3.0 | 3.81 (short) | no | 2.74 |
-| side (3000 rpm, −8.5 rot) | 1.0 | 2.91 (bounced back) | no | 2.11 |
-| side | 1.5 | 3.44 (bounced back) | no | 1.91 |
-| side | 2.0 | 4.76 | yes | 2.59 |
-| side | 2.5 | 4.85 | yes | 2.59 |
-| side | 3.0 | 4.94 | yes | 2.59 |
+| hub (2700 rpm) | 1.0 | 5.03 | yes | 3.49 |
+| hub | 1.5 | 5.00 | yes | 3.49 |
+| hub | 2.0 | 4.50 | yes | 3.49 |
+| hub | 2.5 | 3.55 (short) | no | 3.49 |
+| hub | 3.0 | 3.55 (short) | no | 3.49 |
+| side (3000 rpm, same 78°) | 1.0 | 5.90 (long) | no | 4.11 |
+| side | 1.5 | 5.06 | yes | 4.11 |
+| side | 2.0 | 4.90 | yes | 4.11 |
+| side | 2.5 | 4.40 | yes | 4.11 |
+| side | 3.0 | 3.95 (short) | no | 4.11 |
 
 The auto-end-point assertion passes. The headless `Shoot at Hub` run (step 13) scores all 8 preloads.
 
 | Constant | v0 default | Calibrated | Notes |
 |---|---|---|---|
-| flywheel radius | 0.0508 m | | |
-| flywheel J | 0.004 kg·m² | | |
-| exitSpeedRatio | 0.48 | | |
-| hood pitch at 0 rot | 72° | | |
-| hood °/motor rot | 2.0 | | |
+| flywheel radius | 0.0508 m | 0.0508 m | CAD: two SDS 4 in flywheels |
+| flywheel J | 0.004 kg·m² | 0.003 kg·m² | CAD flywheels 0.0023; rollers and shafts estimated |
+| exitSpeedRatio | 0.48 | 0.55 | sinks the hub preset from the auto end point |
+| spinRatio | 0.8 | 0.33 | 4 in / 2 in pinch at 1:1 |
+| launch pitch | 72° + 2°/rot | 78° fixed | CAD pinch exit; hood zip-tied as raced |
+| exit point | (0.10, 0, 0.64) | (0.195, 0, 0.64) | CAD pinch moved along the launch line to clear the chassis |
 | FUEL restitution | 0.35 | | drop from 1.83 m onto carpet; real rebound height? |
 | carpet rolling resistance | 0.06 | | a FUEL rolled at 2 m/s should stop after ~? m |
 

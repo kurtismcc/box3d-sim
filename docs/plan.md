@@ -137,14 +137,14 @@ None of these block implementation; each has a default in the step docs. The ans
 
 | # | Question | Default used | Where |
 |---|---|---|---|
-| 1 | Which side is the intake on, and how wide is it? | **answered: back**; full 0.9 m bumper width; intake direction only; deploy state ignored | step 11 `SimConstants` |
+| 1 | Which side is the intake on, and how wide is it? | **answered: back**; 0.53 m roller span (CAD); intake direction only; deploy state ignored | step 11 `SimConstants` |
 | 2 | Hopper capacity? | 40 FUEL | step 11 |
-| 3 | Flywheel diameter and gearing; hood angle at the hub preset (0) and at −8.5 rotations | 4 in, 1:1; 72° and 55° | steps 11, 12 |
+| 3 | Flywheel diameter and gearing; hood angle at the hub preset (0) and at −8.5 rotations | **answered (CAD)**: 4 in, Vortex 1:1, 2 in top roller; hood zip-tied at 0 as raced, 78° fixed | steps 11, 12 |
 | 4 | Robot height: did it fit under the TRENCH (22.25 in)? | 0.55 m (fits) | step 11 |
-| 5 | Hood, feeder, indexer, intake motors: NEO or NEO 550? Intake pivot gearing? | NEO 550 rollers and hood, NEO pivot at 65:1 | step 11 |
+| 5 | Hood, feeder, indexer, intake motors: NEO or NEO 550? Intake pivot gearing? | **motors answered (CAD)**: all NEO. Pivot: NEO, 20:1 planetary, 16T #25 sprocket into an unknown sprocket; 65:1 kept | step 11 |
 | 6 | Real drive gearing: the code uses 3.625 for encoders, 3.0 for feedforward, and 4.23 in PathPlanner | 3.625 (matches odometry) | step 11 |
 | 7 | Real module spacing: 27.5 in in code vs 0.546 m in PathPlanner | 27.5 in (what kinematics uses) | step 11 |
-| 8 | Where did hub shots land from the auto start? Any FUEL bounce or roll observations? | none | step 12 calibration |
+| 8 | Where did hub shots land from the auto start? Any FUEL bounce or roll observations? | **answered**: the hub preset sank reliably from the auto end point; bounce and roll still unknown | step 12 calibration |
 | 9 | `Shoot at Hub` calls `Intake Toggle Run`, but the registered name is `Toggle Intake Run`. Fix it in the robot code? | leave as is | robot repo |
 
 ## Beyond v0 (not planned in detail)
