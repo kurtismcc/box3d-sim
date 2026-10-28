@@ -42,13 +42,18 @@ Visualization                         poses over NetworkTables → AdvantageScop
 ## Status
 
 v0 plays 2026 REBUILT with the 2026-Offseason robot (`D:\Projects\2026-Offseason`, branch `box3d-sim`; see its
-`SIMULATION.md`), interactively or headless. The plan is in [docs/plan.md](docs/plan.md).
+`SIMULATION.md`), interactively, headless, or re-enacting a logged match. The plan is in [docs/plan.md](docs/plan.md);
+the suspended chassis is [step 14](docs/steps/14-suspended-chassis.md).
 
 ## v0 limitations
 
-- **Flat chassis.** The robot is locked to the floor plane, with no roll, pitch or ride height. BUMPs don't affect
-  robots, and FUEL still rolls over BUMPs. A robot taller than the trench clearance is blocked by the TRENCH arm.
-- **Normal loads** come from analytic load transfer, not contact forces.
+- **Wheel contact.** With a `SuspensionConfig` the chassis is free in six DOF. Each wheel is a disc sampled by
+  seven rays, pressed into a stiff spring-damper, so it drives over BUMPs, pitches and lands. There is no tread or
+  carpet compliance beyond the slip curve, and wheels can't droop. A 27.5 in wheelbase with 1 in of clearance
+  high-centers on a BUMP's ridge, so a slow crawl gets stuck there. Without a `SuspensionConfig` the chassis is
+  planar, as in v0, and BUMPs stop it.
+- **Shooter exit check** is a single ray along the launch line. A blocked exit (under a TRENCH arm) keeps the piece in
+  the robot; one that only grazes geometry is spawned and pushed out by the solver.
 - **Intake** has no physical roller collider: FUEL in the deployed zone is taken or ignored.
 - **Storage** is counted, not simulated. There are no jams or ball-to-ball contact inside the robot.
 - **HUB** has a square rim instead of the hex, no internal funnel, and exits that are spawn points with random speeds.

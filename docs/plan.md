@@ -67,7 +67,9 @@ F:\Projects\box3d-sim (library, box3dsim:box3d-sim, no WPILib dependency)
 4. **The chassis is a planar dynamic body** (z, roll and pitch locked, no gravity) and never touches the carpet.
    Traction comes entirely from a per-wheel slip-velocity tire model with a friction circle and analytic load
    transfer. That's more accurate than maple-sim's cap-and-blend and avoids fighting the contact solver. The cost:
-   BUMPs can't be driven over physically, so robots ignore them in v0.
+   BUMPs can't be driven over physically, so robots ignore them in v0. (Revised in step 14: with a
+   `SuspensionConfig` the chassis is free in six DOF and finds the ground by ray casts; the same tire model acts in
+   the contact plane with normal loads from per-wheel springs. BUMPs collide with robots.)
 5. **FUEL are always real bodies.** There is no analytic projectile. Air drag and Magnus lift are applied per
    step, and sleeping keeps the ~400 resting FUEL cheap.
 6. **The sim owns the match clock.** The 2027 sim GUI has no timed match. (Revised: the GUI does mirror DS state that
@@ -110,6 +112,7 @@ with one commit.
 | 11 | [Robot integration](steps/11-robot-integration.md) | robot | `frc.robot.sim`, Spark/Pigeon/battery wiring, logging, sim controls |
 | 12 | [Play and calibrate](steps/12-play-and-calibrate.md) | both | AdvantageScope setup, solo play guide, shot calibration, limitations |
 | 13 | [Headless match runner](steps/13-headless-match-runner.md) | robot | scripted DS, pass/fail checks, results JSON, `scripts/sim-ci.ps1` |
+| 14 | [Suspended chassis](steps/14-suspended-chassis.md) | both | six-DOF chassis over BUMPs, Pigeon pitch/roll, blocked shooter exit, log re-enactment |
 
 Dependencies are strictly linear except that 05 needs only 01, so 05 can be done in parallel with 02–04.
 
@@ -146,11 +149,13 @@ None of these block implementation; each has a default in the step docs. The ans
 | 7 | Real module spacing: 27.5 in in code vs 0.546 m in PathPlanner | 27.5 in (what kinematics uses) | step 11 |
 | 8 | Where did hub shots land from the auto start? Any FUEL bounce or roll observations? | **answered**: the hub preset sank reliably from the auto end point; bounce and roll still unknown | step 12 calibration |
 | 9 | `Shoot at Hub` calls `Intake Toggle Run`, but the registered name is `Toggle Intake Run`. Fix it in the robot code? | leave as is | robot repo |
+| 10 | Frame ground clearance, and did the raced robot cross BUMPs or always use the TRENCH? | 1 in; it high-centers on the ridge below about 3 V of drive | step 14 `SimConstants` |
+| 11 | Real match logs from SoCal Showdown (`.wpilog` from the SystemCore) | **answered**: q10 re-enacts; not used for tuning, since the code the robot ran can't be verified | step 14 re-enact |
 
 ## Beyond v0 (not planned in detail)
 
-- Unlocked chassis pitch and roll with wheel-ground contact, so BUMPs can be driven over and load transfer comes
-  from contact forces.
+- Re-enactment that re-syncs the simulated robot to the logged pose and velocity every few seconds, so its error
+  measures dynamics over short windows instead of open-loop drift over a whole match.
 - A physical intake roller collider and a storage path with jams.
 - HUB hex geometry, internal funnel and physical exit chutes.
 - Opponent and partner robots (scripted or a second gamepad), towers and climbing.
