@@ -109,7 +109,7 @@ class RebuiltFieldTest {
     }
 
     @Test
-    void fuelRidesOverBumpButRobotPassesThrough() {
+    void fuelRidesOverBumpAndPlanarRobotIsStopped() {
         GamePiece f = fuel(new Vec3(3.5, 2.5, 0.075), new Vec3(3, 0, 0));
         BodyHandle robot = arena.world().createBody(BodySpec.dynamic(Pose3.ofXYYaw(3.5, 5.5, 0.2, 0))
                 .withLocks(MotionLocks.PLANAR).withGravityScale(0).withSleep(false));
@@ -122,7 +122,7 @@ class RebuiltFieldTest {
             maxZ = Math.max(maxZ, f.pose().position().z());
         }
         assertTrue(maxZ > 0.2, "max z " + maxZ);
-        assertTrue(arena.world().pose(robot).position().x() > 5.3, "robot x " + arena.world().pose(robot).position().x());
+        assertTrue(arena.world().pose(robot).position().x() < 4.3, "robot x " + arena.world().pose(robot).position().x());
     }
 
     @Test

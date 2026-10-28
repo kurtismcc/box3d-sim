@@ -91,8 +91,8 @@ public final class RebuiltField {
         b.box(a, HUB_MIN_X + t, HUB_MAX_Y - t, HUB_BASE_TOP, HUB_MAX_X - t, HUB_MAX_Y, HUB_RIM_TOP, poly);
         b.box(a, HUB_MAX_X, 3.2926, HUB_RIM_TOP, HUB_MAX_X + 0.02, 4.7766, 3.057, poly);
 
-        // BUMPs: robots drive through them in v0 (PIECE_BLOCKER); FUEL rolls over them.
-        ShapeOptions bump = ShapeOptions.solid(RebuiltMaterials.HDPE, 0, CollisionLayers.PIECE_BLOCKER);
+        // BUMPs: a suspended chassis drives over them, a planar one is stopped by them; FUEL rolls over them.
+        ShapeOptions bump = field(RebuiltMaterials.HDPE);
         b.prism(a, 4.0615, 5.1895, 4.6255, 0.1654, 1.5834, 3.4376, bump);
         b.prism(a, 4.0615, 5.1895, 4.6255, 0.1654, 4.6316, 6.4856, bump);
 

@@ -4,9 +4,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import box3dsim.math.Pose3;
 import box3dsim.math.Vec3;
 import box3dsim.motor.DcMotor;
 import box3dsim.motor.LumpedMechanism;
+import box3dsim.world.BodyHandle;
+import box3dsim.world.BodySpec;
+import box3dsim.world.CollisionLayers;
+import box3dsim.world.Material;
+import box3dsim.world.ShapeOptions;
+import box3dsim.world.ShapeSpec;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,6 +60,18 @@ class ShooterSimTest {
         assertEquals(0.48 * Math.abs(w) * RADIUS, v.norm(), 0.48 * Math.abs(w) * RADIUS * 0.02);
         assertEquals(60, Math.toDegrees(Math.atan2(v.z(), Math.hypot(v.x(), v.y()))), 0.5);
         assertEquals(1, rig.arena.gamePieces().count(MechanismTestRig.FUEL));
+    }
+
+    @Test
+    void ceilingOverTheExitBlocksTheShot() {
+        BodyHandle arm = rig.arena.world().createBody(BodySpec.fixed(Pose3.ofXYYaw(0, 0, 0.80, 0)));
+        rig.arena.world().addShape(arm, new ShapeSpec.Box(new Vec3(1, 1, 0.2348), Pose3.IDENTITY),
+                ShapeOptions.solid(new Material(0.4, 0.3, 0), 0, CollisionLayers.FIELD));
+        spinUp();
+        assertFalse(shooter.launch(MechanismTestRig.FUEL));
+        assertTrue(shooter.exitBlocked());
+        assertEquals(0, shooter.shotsFired());
+        assertEquals(0, rig.arena.gamePieces().count(MechanismTestRig.FUEL));
     }
 
     @Test

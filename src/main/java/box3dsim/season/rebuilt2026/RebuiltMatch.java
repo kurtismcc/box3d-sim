@@ -405,6 +405,11 @@ public final class RebuiltMatch implements ArenaParticipant {
         return firstInactive;
     }
 
+    /** FMS game data for this match: replaces the pick from AUTO scores until the next match starts. */
+    public void setFirstInactive(Alliance a) {
+        firstInactive = Optional.of(a);
+    }
+
     public int score(Alliance a) {
         return score.get(a);
     }

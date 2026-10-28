@@ -10,10 +10,17 @@ import box3dsim.math.Vec3;
 import box3dsim.motor.Battery;
 import box3dsim.motor.ElectricalLoad;
 import box3dsim.motor.LumpedMechanism;
+import box3dsim.world.CollisionFilter;
+import box3dsim.world.CollisionLayers;
 import java.util.Optional;
 
 /** Flywheel and hood shooter that launches real game piece bodies and loses flywheel energy per shot. */
 public final class ShooterSim implements ArenaParticipant, ElectricalLoad, Launcher {
+    /** The launch path is checked from this far back along the launch line, inside the chassis. */
+    private static final double PATH_CHECK_BACKOFF = 0.15;
+    private static final CollisionFilter FIELD =
+            new CollisionFilter(CollisionLayers.GAME_PIECE, CollisionLayers.FIELD | CollisionLayers.PIECE_BLOCKER);
+
     private final Arena arena;
     private final SwerveDriveSim drive;
     private final ShooterConfig config;
@@ -21,6 +28,7 @@ public final class ShooterSim implements ArenaParticipant, ElectricalLoad, Launc
     private final LumpedMechanism flywheel;
     private final LumpedMechanism hood;
     private int shots;
+    private boolean exitBlocked;
     private Vec3 lastExitVelocity;
 
     public ShooterSim(Arena arena, SwerveDriveSim drive, Battery battery, ShooterConfig config,
@@ -58,6 +66,11 @@ public final class ShooterSim implements ArenaParticipant, ElectricalLoad, Launc
         return shots;
     }
 
+    /** True while the last launch attempt was refused because field geometry blocked the exit. */
+    public boolean exitBlocked() {
+        return exitBlocked;
+    }
+
     /** Field-frame velocity of the last launched piece. */
     public Optional<Vec3> lastExitVelocity() {
         return Optional.ofNullable(lastExitVelocity);
@@ -82,10 +95,16 @@ public final class ShooterSim implements ArenaParticipant, ElectricalLoad, Launc
         Vec3 dir = robot.transformVector(new Vec3(Math.cos(pitch) * Math.cos(yaw0), Math.cos(pitch) * Math.sin(yaw0),
                 Math.sin(pitch)));
         Vec3 p = robot.transformPoint(config.exitPointRobot());
-        Vec3 r = p.minus(robot.position());
-        Vec3 chassis = drive.fieldVelocity();
-        double omega = drive.yawRate();
-        Vec3 v = new Vec3(chassis.x() - omega * r.y(), chassis.y() + omega * r.x(), 0).plus(dir.times(exitSpeed));
+        // A piece whose path from inside the chassis to the exit runs into field geometry (a TRENCH arm overhead)
+        // has no room to leave: it stays in the robot.
+        Vec3 pathStart = p.minus(dir.times(PATH_CHECK_BACKOFF));
+        exitBlocked = arena.world()
+                .castRayClosest(pathStart, dir.times(PATH_CHECK_BACKOFF + type.radius()), FIELD)
+                .isPresent();
+        if (exitBlocked) {
+            return false;
+        }
+        Vec3 v = drive.pointVelocity(p).plus(dir.times(exitSpeed));
         Vec3 spinAxis = dir.cross(new Vec3(0, 0, 1)).normalized();
         Vec3 spin = spinAxis.times(config.spinRatio() * exitSpeed / type.radius());
         GamePiece piece = arena.gamePieces().spawn(type, p, v, spin, true);
@@ -103,6 +122,7 @@ public final class ShooterSim implements ArenaParticipant, ElectricalLoad, Launc
     @Override
     public void reset(Arena arena) {
         shots = 0;
+        exitBlocked = false;
         lastExitVelocity = null;
     }
 

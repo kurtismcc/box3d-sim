@@ -10,36 +10,54 @@ import box3dsim.motor.ElectricalLoad;
 import box3dsim.motor.LumpedMechanism;
 import box3dsim.world.BodyHandle;
 import box3dsim.world.BodySpec;
+import box3dsim.world.CollisionFilter;
 import box3dsim.world.CollisionLayers;
 import box3dsim.world.Material;
 import box3dsim.world.MotionLocks;
+import box3dsim.world.RayHit;
 import box3dsim.world.ShapeOptions;
 import box3dsim.world.ShapeSpec;
 import box3dsim.world.SimWorld;
 import java.util.List;
+import java.util.Optional;
 
 /**
- * Swerve chassis as a planar body that never touches the carpet. All traction comes from a per-wheel slip-velocity
- * tire model; normal loads come from static weight plus analytic load transfer.
+ * Swerve chassis driven by a per-wheel slip-velocity tire model. Two contact models:
+ *
+ * <ul>
+ *   <li>planar (no {@link SuspensionConfig}): the body is locked flat and never touches the carpet; normal loads come
+ *       from static weight plus analytic load transfer;
+ *   <li>suspended: the body is free in six DOF under gravity, each wheel finds the ground by ray casts, and its normal
+ *       load comes from a spring-damper on the wheel's penetration. Tire forces act in the contact plane.
+ * </ul>
  */
 public final class SwerveDriveSim implements ArenaParticipant, ElectricalLoad {
     private static final double GRAVITY = 9.81;
     private static final int WHEEL_MICRO_STEPS = 10;
     private static final double ACCEL_FILTER_TIME_CONSTANT = 0.05;
+    /** Rays sample the wheel disc at these fractions of its radius along the heading. */
+    private static final double[] WHEEL_SAMPLES = {-0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75};
+    /** Ray start above the axle, so a wheel pressed into a ramp still sees the surface. */
+    private static final double RAY_START_ABOVE_AXLE = 0.1;
+    private static final CollisionFilter GROUND = new CollisionFilter(CollisionLayers.ROBOT, CollisionLayers.FIELD);
+    private static final Vec3 UP = new Vec3(0, 0, 1);
     private static final Material BUMPER = new Material(0.5, 0.1, 0);
     private static final Material FRAME = new Material(0.3, 0.2, 0);
 
     private final SimWorld world;
     private final Battery battery;
     private final SwerveDriveConfig config;
+    private final SuspensionConfig suspension;
     private final BodyHandle body;
     private final Module[] modules;
     private final GyroSim gyro;
     private final double meanX2;
     private final double meanY2;
+    private final double restZ;
 
     private Pose3 pose;
     private Vec3 velocity = Vec3.ZERO;
+    private Vec3 angularVelocity = Vec3.ZERO;
     private double yawRate;
     private Vec3 prevVelocity = Vec3.ZERO;
     private double accelX;
@@ -58,6 +76,8 @@ public final class SwerveDriveSim implements ArenaParticipant, ElectricalLoad {
         double driveStator;
         double driveSupply;
         double normalLoad;
+        Vec3 contactPoint = Vec3.ZERO;
+        Vec3 contactNormal = UP;
 
         Module(SwerveModuleConfig cfg, Battery battery) {
             this.cfg = cfg;
@@ -72,11 +92,15 @@ public final class SwerveDriveSim implements ArenaParticipant, ElectricalLoad {
         this.world = world;
         this.battery = battery;
         this.config = config;
+        this.suspension = config.suspension();
+        int n = config.modules().size();
+        // A suspended chassis rests with each wheel pressed in by its share of the weight.
+        this.restZ = suspension == null ? 0 : -config.mass() * GRAVITY / (n * suspension.stiffness());
         double yaw = startPose.rotation().yaw();
-        Pose3 start = Pose3.ofXYYaw(startPose.position().x(), startPose.position().y(), 0, yaw);
+        Pose3 start = Pose3.ofXYYaw(startPose.position().x(), startPose.position().y(), restZ, yaw);
         this.body = world.createBody(BodySpec.dynamic(start)
-                .withLocks(MotionLocks.PLANAR)
-                .withGravityScale(0)
+                .withLocks(suspension == null ? MotionLocks.PLANAR : MotionLocks.NONE)
+                .withGravityScale(suspension == null ? 0 : 1)
                 .withBullet(true)
                 .withSleep(false)
                 .withName("swerve chassis"));
@@ -88,9 +112,12 @@ public final class SwerveDriveSim implements ArenaParticipant, ElectricalLoad {
         ShapeOptions bumper = ShapeOptions.solid(BUMPER, 1.0, CollisionLayers.ROBOT);
         world.addShape(body, new ShapeSpec.Box(new Vec3(hx, hy, config.bumperHeight() / 2),
                 Pose3.ofXYYaw(0, 0, bottom + config.bumperHeight() / 2, 0)), bumper);
-        // Skirt under the bumper so 15 cm balls can't slip beneath the robot.
-        world.addShape(body, new ShapeSpec.Box(new Vec3(hx - 0.01, hy - 0.01, bottom / 2 - 0.005),
-                Pose3.ofXYYaw(0, 0, bottom / 2 + 0.005, 0)), bumper);
+        // Skirt under the bumper so 15 cm balls can't slip beneath the robot. On a suspended chassis it is the frame's
+        // underside, which slides on a BUMP's ridge when the robot high-centers.
+        double skirtBottom = suspension == null ? 0.01 : suspension.groundClearance();
+        world.addShape(body, new ShapeSpec.Box(new Vec3(hx - 0.01, hy - 0.01, (bottom - skirtBottom) / 2),
+                Pose3.ofXYYaw(0, 0, (bottom + skirtBottom) / 2, 0)),
+                suspension == null ? bumper : ShapeOptions.solid(FRAME, 1.0, CollisionLayers.ROBOT));
         double inset = config.frameInset();
         double frameHalfHeight = (config.robotHeight() - top) / 2;
         world.addShape(body, new ShapeSpec.Box(new Vec3(hx - inset, hy - inset, frameHalfHeight),
@@ -98,23 +125,26 @@ public final class SwerveDriveSim implements ArenaParticipant, ElectricalLoad {
         applyMass();
 
         List<SwerveModuleConfig> cfgs = config.modules();
-        this.modules = new Module[cfgs.size()];
+        this.modules = new Module[n];
         double sx = 0;
         double sy = 0;
-        for (int i = 0; i < modules.length; i++) {
+        for (int i = 0; i < n; i++) {
             modules[i] = new Module(cfgs.get(i), battery);
             sx += cfgs.get(i).x() * cfgs.get(i).x();
             sy += cfgs.get(i).y() * cfgs.get(i).y();
         }
-        this.meanX2 = sx / modules.length;
-        this.meanY2 = sy / modules.length;
+        this.meanX2 = sx / n;
+        this.meanY2 = sy / n;
         this.gyro = new GyroSim(config.gyro(), yaw);
         this.pose = start;
     }
 
     private void applyMass() {
-        world.setMassProperties(body, config.mass(), new Vec3(0, 0, config.cgHeight()),
-                new Vec3(config.yawMoi(), config.yawMoi(), config.yawMoi()));
+        double yawMoi = config.yawMoi();
+        Vec3 inertia = suspension == null
+                ? new Vec3(yawMoi, yawMoi, yawMoi)
+                : new Vec3(suspension.rollMoi(), suspension.pitchMoi(), yawMoi);
+        world.setMassProperties(body, config.mass(), new Vec3(0, 0, config.cgHeight()), inertia);
     }
 
     /** Re-applies the configured mass if something (a shape added later) reset it. */
@@ -126,6 +156,10 @@ public final class SwerveDriveSim implements ArenaParticipant, ElectricalLoad {
 
     public int moduleCount() {
         return modules.length;
+    }
+
+    public boolean suspended() {
+        return suspension != null;
     }
 
     /** Positive drive volts roll the wheel toward the module heading. */
@@ -140,10 +174,7 @@ public final class SwerveDriveSim implements ArenaParticipant, ElectricalLoad {
     /** Computes tire forces and applies them to the chassis for the next world step. */
     public void prePhysics(double dt) {
         ensureMass();
-        pose = world.pose(body);
-        velocity = world.linearVelocity(body);
-        yawRate = world.angularVelocity(body).z();
-        double yaw = pose.rotation().yaw();
+        readState();
         Vec3 c = pose.position();
         int n = modules.length;
         double weight = config.mass() * GRAVITY / n;
@@ -152,27 +183,37 @@ public final class SwerveDriveSim implements ArenaParticipant, ElectricalLoad {
 
         for (Module m : modules) {
             SwerveModuleConfig mc = m.cfg;
-            if (config.loadTransfer()) {
-                double transfer = config.mass() * config.cgHeight()
-                        * (accelX * mc.x() / (n * meanX2) + accelY * mc.y() / (n * meanY2));
-                m.normalLoad = Math.clamp(weight - transfer, 0.05 * weight, 2 * weight);
-            } else {
-                m.normalLoad = weight;
-            }
-
             m.steer.setInput(m.steerVolts, m.steerCoast);
             m.steer.step(dt);
+            double steer = m.steer.position();
+            Vec3 headingBody = new Vec3(Math.cos(steer), Math.sin(steer), 0);
 
-            Vec3 p = pose.transformPoint(new Vec3(mc.x(), mc.y(), 0));
-            double rx = p.x() - c.x();
-            double ry = p.y() - c.y();
-            double vx = velocity.x() - yawRate * ry;
-            double vy = velocity.y() + yawRate * rx;
-            double heading = yaw + m.steer.position();
-            double hx = Math.cos(heading);
-            double hy = Math.sin(heading);
-            double u = vx * hx + vy * hy;
-            double w = -vx * hy + vy * hx;
+            if (suspension == null) {
+                if (config.loadTransfer()) {
+                    double transfer = config.mass() * config.cgHeight()
+                            * (accelX * mc.x() / (n * meanX2) + accelY * mc.y() / (n * meanY2));
+                    m.normalLoad = Math.clamp(weight - transfer, 0.05 * weight, 2 * weight);
+                } else {
+                    m.normalLoad = weight;
+                }
+                m.contactPoint = pose.transformPoint(new Vec3(mc.x(), mc.y(), 0));
+                m.contactNormal = UP;
+            }
+            double penetration = suspension == null ? 0 : findContact(m, headingBody);
+            Vec3 p = m.contactPoint;
+            Vec3 normal = m.contactNormal;
+            Vec3 vc = pointVelocity(p);
+            if (suspension != null) {
+                m.normalLoad = penetration > 0
+                        ? Math.max(0, suspension.stiffness() * penetration - suspension.damping() * vc.dot(normal))
+                        : 0;
+            }
+
+            Vec3 heading = pose.transformVector(headingBody);
+            Vec3 tLong = heading.minus(normal.times(heading.dot(normal))).normalized();
+            Vec3 tLat = normal.cross(tLong);
+            double u = vc.dot(tLong);
+            double w = vc.dot(tLat);
 
             DcMotor motor = mc.driveMotor();
             double g = mc.driveGearing();
@@ -193,7 +234,7 @@ public final class SwerveDriveSim implements ArenaParticipant, ElectricalLoad {
                 double sigma = Math.hypot(sLong, w);
                 double fh = 0;
                 double fl = 0;
-                if (sigma > 1e-9) {
+                if (sigma > 1e-9 && m.normalLoad > 0) {
                     double mu = tire.kineticMu()
                             + (tire.staticMu() - tire.kineticMu()) * Math.exp(-sigma / tire.slipDecayVelocity());
                     double mag = mu * m.normalLoad * Math.tanh(sigma / tire.slipVelocity());
@@ -211,12 +252,52 @@ public final class SwerveDriveSim implements ArenaParticipant, ElectricalLoad {
             }
             double fh = sumFh / WHEEL_MICRO_STEPS;
             double fl = sumFl / WHEEL_MICRO_STEPS;
-            world.applyForce(body, new Vec3(fh * hx - fl * hy, fh * hy + fl * hx, 0), p);
+            Vec3 force = tLong.times(fh).plus(tLat.times(fl));
+            if (suspension != null) {
+                force = force.plus(normal.times(m.normalLoad));
+            }
+            if (force.normSquared() > 0) {
+                world.applyForce(body, force, p);
+            }
 
             m.driveApplied = open ? 0 : volts;
             m.driveStator = sumStator / WHEEL_MICRO_STEPS;
             m.driveSupply = ElectricalLoad.supplyFromStator(m.driveStator, m.driveApplied, vBat);
         }
+    }
+
+    /**
+     * Ray-samples the wheel disc against the ground and keeps the deepest sample as the module's contact point and
+     * normal. Returns the penetration along the body's up axis, 0 when the wheel is off the ground.
+     */
+    private double findContact(Module m, Vec3 headingBody) {
+        SwerveModuleConfig mc = m.cfg;
+        double r = mc.wheelRadius();
+        double best = 0;
+        RayHit bestHit = null;
+        for (double f : WHEEL_SAMPLES) {
+            double s = f * r;
+            double halfChord = Math.sqrt(r * r - s * s);
+            double length = RAY_START_ABOVE_AXLE + halfChord;
+            Vec3 origin = pose.transformPoint(new Vec3(mc.x() + s * headingBody.x(), mc.y() + s * headingBody.y(),
+                    r + RAY_START_ABOVE_AXLE));
+            Optional<RayHit> hit = world.castRayClosest(origin, pose.transformVector(new Vec3(0, 0, -length)), GROUND);
+            if (hit.isPresent()) {
+                double depth = (1 - hit.get().fraction()) * length;
+                if (depth > best) {
+                    best = depth;
+                    bestHit = hit.get();
+                }
+            }
+        }
+        if (bestHit == null) {
+            m.contactPoint = pose.transformPoint(new Vec3(mc.x(), mc.y(), 0));
+            m.contactNormal = pose.transformVector(UP);
+        } else {
+            m.contactPoint = bestHit.point();
+            m.contactNormal = bestHit.normal().normalized();
+        }
+        return best;
     }
 
     @Override
@@ -229,11 +310,16 @@ public final class SwerveDriveSim implements ArenaParticipant, ElectricalLoad {
         postPhysics(dt);
     }
 
-    /** Reads back the chassis state after the world step. */
-    public void postPhysics(double dt) {
+    private void readState() {
         pose = world.pose(body);
         velocity = world.linearVelocity(body);
-        yawRate = world.angularVelocity(body).z();
+        angularVelocity = world.angularVelocity(body);
+        yawRate = angularVelocity.z();
+    }
+
+    /** Reads back the chassis state after the world step. */
+    public void postPhysics(double dt) {
+        readState();
         double yaw = pose.rotation().yaw();
 
         double ax = (velocity.x() - prevVelocity.x()) / dt;
@@ -283,13 +369,28 @@ public final class SwerveDriveSim implements ArenaParticipant, ElectricalLoad {
         return modules[i].steer.statorCurrent();
     }
 
-    /** True pose, z = 0. */
+    /** Normal load on the wheel, N; 0 while it is off the ground. */
+    public double normalLoad(int i) {
+        return modules[i].normalLoad;
+    }
+
+    /** True pose. z = 0 and level for a planar chassis; a suspended one rests slightly below 0. */
     public Pose3 pose() {
         return pose;
     }
 
     public Vec3 fieldVelocity() {
         return velocity;
+    }
+
+    /** World frame, rad/s. */
+    public Vec3 angularVelocity() {
+        return angularVelocity;
+    }
+
+    /** Velocity of a world point fixed to the chassis. */
+    public Vec3 pointVelocity(Vec3 worldPoint) {
+        return velocity.plus(angularVelocity.cross(worldPoint.minus(pose.position())));
     }
 
     public double yawRate() {
@@ -300,13 +401,14 @@ public final class SwerveDriveSim implements ArenaParticipant, ElectricalLoad {
         return gyro;
     }
 
-    /** Zeroes chassis velocity and wheel spin; the gyro reading is unchanged. */
+    /** Places the chassis level at rest height and zeroes chassis velocity and wheel spin; the gyro is unchanged. */
     public void teleport(double x, double y, double yaw) {
-        Pose3 p = Pose3.ofXYYaw(x, y, 0, yaw);
+        Pose3 p = Pose3.ofXYYaw(x, y, restZ, yaw);
         world.setPose(body, p);
         world.setVelocity(body, Vec3.ZERO, Vec3.ZERO);
         pose = p;
         velocity = Vec3.ZERO;
+        angularVelocity = Vec3.ZERO;
         prevVelocity = Vec3.ZERO;
         yawRate = 0;
         accelX = 0;
@@ -336,10 +438,6 @@ public final class SwerveDriveSim implements ArenaParticipant, ElectricalLoad {
 
     LumpedMechanism steer(int i) {
         return modules[i].steer;
-    }
-
-    double normalLoad(int i) {
-        return modules[i].normalLoad;
     }
 
     void setWheelVelocity(int i, double radPerSec) {

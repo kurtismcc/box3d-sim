@@ -24,4 +24,9 @@ public final class TestConfigs {
         return new SwerveDriveConfig(modules, 50, 6.883, 0.20, 0.9, 0.9, 0.0635, 0.0825, 0.08, 0.55,
                 TireConfig.defaults(), gyro, loadTransfer);
     }
+
+    /** maxSwerve() free in six DOF, with 1 in of ground clearance. */
+    public static SwerveDriveConfig suspended() {
+        return maxSwerve().withSuspension(new SuspensionConfig(70_000, 1_000, 0.0254, 4.6, 4.6));
+    }
 }

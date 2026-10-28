@@ -2,7 +2,12 @@ package box3dsim.drive;
 
 import java.util.List;
 
-/** Swerve chassis: modules, mass properties, bumper and superstructure geometry, tire and gyro models. */
+/**
+ * Swerve chassis: modules, mass properties, bumper and superstructure geometry, tire and gyro models.
+ *
+ * @param loadTransfer planar chassis only: analytic load transfer from the chassis acceleration
+ * @param suspension null for a planar chassis that never touches the carpet
+ */
 public record SwerveDriveConfig(
         List<SwerveModuleConfig> modules,
         double mass,
@@ -16,7 +21,8 @@ public record SwerveDriveConfig(
         double robotHeight,
         TireConfig tire,
         GyroConfig gyro,
-        boolean loadTransfer) {
+        boolean loadTransfer,
+        SuspensionConfig suspension) {
 
     public SwerveDriveConfig {
         modules = List.copyOf(modules);
@@ -28,5 +34,21 @@ public record SwerveDriveConfig(
         if (robotHeight <= bumperBottom + bumperHeight) {
             throw new IllegalArgumentException("robotHeight must be above the bumper top");
         }
+        if (suspension != null && suspension.groundClearance() >= bumperBottom) {
+            throw new IllegalArgumentException("groundClearance must be below the bumper bottom");
+        }
+    }
+
+    /** Planar chassis. */
+    public SwerveDriveConfig(List<SwerveModuleConfig> modules, double mass, double yawMoi, double cgHeight,
+            double bumperLengthX, double bumperWidthY, double bumperBottom, double bumperHeight, double frameInset,
+            double robotHeight, TireConfig tire, GyroConfig gyro, boolean loadTransfer) {
+        this(modules, mass, yawMoi, cgHeight, bumperLengthX, bumperWidthY, bumperBottom, bumperHeight, frameInset,
+                robotHeight, tire, gyro, loadTransfer, null);
+    }
+
+    public SwerveDriveConfig withSuspension(SuspensionConfig s) {
+        return new SwerveDriveConfig(modules, mass, yawMoi, cgHeight, bumperLengthX, bumperWidthY, bumperBottom,
+                bumperHeight, frameInset, robotHeight, tire, gyro, loadTransfer, s);
     }
 }
